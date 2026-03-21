@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gr4ktung | alphaEcho Walkthrough</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../../style.css">
+</head>
+<body>
+    <div class="cyber-grid"></div>
+
+    <nav>
+        <div class="logo"><a href="../../../index.html">gr4ktung</a></div>
+        
+        <div class="search-container">
+            <span class="search-prompt">gr4ktung@blog:~$ grep</span>
+            <input type="text" id="site-search" placeholder="..." autocomplete="off">
+        </div>
+
+        <div class="nav-links">
+            <a href="../../../about.html">~/about</a>
+            <a href="../../../blog.html" class="active">~/posts</a>
+            <a href="../../../achievements.html">~/achievements</a>
+        </div>
+    </nav>
+
+    <main>
+        <div class="writeup-layout">
+            
+            <aside class="sidebar">
+                <h4>MISSION_BRIEF</h4>
+                <div class="intel-grid">
+                    <div class="detail-box">
+                        <span class="label">Target</span>
+                        <span class="value">W3k4 m4w3 01</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Category</span>
+                        <span class="value">Command Injection</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Author</span>
+                        <span class="value">gr4ktung</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Date</span>
+                        <span class="value">March 13, 2026</span>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <span class="tag">RCE</span>
+                    <span class="tag">Constraint Bypass</span>
+                    <span class="tag">Vim Escape</span>
+                </div>
+            </aside>
+
+            <article class="blog-content">
+                <h1>Official Writeup: W3k4-m4w3 01</h1>
+                <div class="blog-meta">
+                    > Published: March 13, 2026 | ⏱ 4 min read | Author: gr4ktung
+                </div>
+
+              <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+                 <blockquote>
+                    Howdy!!!, I'm the creator of this challenge in the <strong>t3rmin4t0rs CTF 2026</strong>. Due to server being down..., I accessed the lab locally for this walkthrough.
+                </blockquote>
+                 <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>🧭 Challenge Overview</h3>
+                <p>We are given a service running on <code>nc localhost 9009</code>. Upon connection, we are greeted with the following prompt:</p>
+                
+                <div class="command-block">Welcome to t3rmin4t0rs service
+Enter an order to alphaEcho ^^:</div>
+
+                    <img src="../t3rmin4t0rs_ctf-2026/images/weka01.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>🔎 Initial Testing & Logic Reconstruction</h3>
+                <p>Standard commands like <code>ls</code>, <code>pwd</code>, or <code>id</code> returned "not found" errors, but with a strange twist: the command names were being prepended with the word "echo" without a space.</p>
+                
+                <div class="command-block">Input: ls  -> Output: sh: 1: echols: not found
+Input: id  -> Output: sh: 1: echoid: not found</div>
+
+                    <img src="../t3rmin4t0rs_ctf-2026/images/weka02.png" alt="Challenge Interface" class="content-img">
+
+                <p><strong>🧠 Understanding the Behavior:</strong><br>
+                It's clear the backend is taking our input and running something like <code>os.system("echo" + input)</code>. Because there is no space between "echo" and our input, the shell tries to execute a single concatenated binary name.</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>🔍 The Vulnerability</h3>
+                <p>Analyzing the backend logic (reconstructed from trial and error), we find a lethal combination of flaws:</p>
+                
+                <ol>
+                    <li><strong>Direct Command Injection:</strong> The use of <code>os.system()</code> allows us to break out of the "echo" command using a semicolon (<code>;</code>).</li>
+                    <li><strong>Strict Input Truncation:</strong> Only the <strong>first 3 characters</strong> of our input are processed.</li>
+                    <li><strong>Weak Filter:</strong> It only blocks the string <code>sh</code> within those 3 characters.</li>
+                </ol>
+
+                <table style="width: 100%; text-align: left; border-collapse: collapse; margin: 20px 0;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--accent-primary);">
+                            <th style="padding: 10px;">Input</th>
+                            <th style="padding: 10px;">Processed Command</th>
+                            <th style="padding: 10px;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td style="padding: 10px;"><code>;ls</code></td><td><code>echo;ls</code></td><td>✅ Success (Lists files)</td></tr>
+                        <tr><td style="padding: 10px;"><code>;cat flag.txt</code></td><td><code>echo;ca</code></td><td>❌ Failed (Truncated to 3 chars)</td></tr>
+                        <tr><td style="padding: 10px;"><code>;sh</code></td><td><code>[Filtered]</code></td><td>❌ Failed (Blocked by filter)</td></tr>
+                    </tbody>
+                </table>
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/weka03.png" alt="Challenge Interface" class="content-img">
+                
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>💥 Exploitation: The "Small" Big Brain Move</h3>
+                <p>We know we have RCE, but we are trapped by the 3-character limit. We need a payload that is 3 characters or less but grants us full system access. While <code>;sh</code> is blocked, there is another legendary interactive binary that fits perfectly: <strong>vi</strong>.</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h4>🚀 Step 1: Triggering Vim</h4>
+                <div class="command-block">Input: ;vi</div>
+                <p>This bypasses the filter and fits the 3-character limit. The service now launches the Vim text editor inside our terminal session.</p>
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/weka04.png" alt="Challenge Interface" class="content-img">
+
+                <h4>🚀 Step 2: Escaping to Shell</h4>
+                <p>Once inside Vim, we can use the built-in shell escape command. Since the filter is no longer checking our input once the binary is running, we can call <code>sh</code> directly:</p>
+                
+                <div class="command-block">:!sh</div>
+
+                
+
+                <p><strong>✔ Shell obtained!</strong> We are now operating in a standard shell environment without character limits or filters.</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>🏁 Flag Recovery</h3>
+                <p>With our unrestricted shell, we can finally list the directory and read the flag:</p>
+                
+                <div class="command-block">$ ls
+entrypoint.sh  flag.txt  main.py
+
+$ cat flag.txt
+t3rmctf{v1m_t0_th3_r3$cue!}</div>
+
+                    <img src="../t3rmin4t0rs_ctf-2026/images/weka05.png" alt="Challenge Interface" class="content-img">
+
+                <div style="text-align: center; margin-top: 40px;">
+                    <div class="flag-block">t3rmctf{v1m_t0_th3_r3$cue!}</div>
+                </div>
+
+                <div class="post-nav">
+                    <a href="../../../blog.html" class="btn">RETURN_TO_DIR</a>
+                </div>
+            </article>
+
+            <aside class="sidebar" style="background: transparent; border: none; padding: 0;">
+                <h4 style="padding-left: 20px;">RELATED_INTEL FROM t3rmin4t0rs-CTF 2026</h4>
+                <div class="staggered-links">
+                    <a href="../t3rmin4t0rs_ctf-2026/ailavator.html" class="stagger-link">Boot2Root: Ailavator</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/d3uc3-dev.html" class="stagger-link">Web: d3uc3-dev</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/dc.html" class="stagger-link">IoT/Web: D-C</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/epst3in-files.html" class="stagger-link">Web: Epst3in-files</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/l33node-m4g1c.html" class="stagger-link">Web: l33node-m4g1c</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/majembe.html" class="stagger-link">Crypto: Maj3mb3</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/mbavu-destroyer.html" class="stagger-link">Crypto: Mb4vu-d3stroy3r</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/tony-st4ck.html" class="stagger-link">Forensics: T0ny-st4ck</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/weka-mawe02.html" class="stagger-link">Misc: W3k4-m4w3</a>
+                </div>
+            </aside> 
+        </div>
+    </main>
+
+    <footer>
+        <p>sys.exit(0) | Designed by gr4ktung </p>
+    </footer>
+
+    <div class="scroll-controls">
+        <button class="scroll-btn" id="scroll-to-top">↑</button>
+        <button class="scroll-btn" id="scroll-to-bottom">↓</button>
+    </div>
+
+    <script src="../../../script.js"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+ ASIDE CODE:
+ <aside class="sidebar" style="background: transparent; border: none; padding: 0;">
+                <h4 style="padding-left: 20px;">RELATED_INTEL FROM t3rmin4t0rs-CTF 2026</h4>
+                <div class="staggered-links">
+                    <a href="#" class="stagger-link">System Breach: Lab-01</a>
+                    <a href="#" class="stagger-link">Network Hijack: Alpha</a>
+                    <a href="#" class="stagger-link">Crypto: RSA Factor</a>
+                    <a href="#" class="stagger-link">Forensics: Hidden.pdf</a>
+                </div>
+            </aside> 

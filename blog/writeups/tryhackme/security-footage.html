@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gr4ktung | Security Footage - THM Writeup</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../../style.css">
+</head>
+<body>
+    <div class="cyber-grid"></div>
+
+    <nav>
+        <div class="logo"><a href="../../../index.html">gr4ktung</a></div>
+        <div class="nav-links">
+            <a href="../../../about.html">~/about</a>
+            <a href="../../../blog.html" class="active">~/posts</a>
+            <a href="../../../achievements.html">~/achievements</a>
+        </div>
+    </nav>
+
+    <main>
+        <div class="writeup-layout">
+            
+            <aside class="sidebar">
+                <h4>MISSION_BRIEF</h4>
+                <div class="intel-grid">
+                    <div class="detail-box">
+                        <span class="label">Target</span>
+                        <span class="value">TryHackMe</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Difficulty</span>
+                        <span class="value" style="color: #ff9d00;">Medium</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Category</span>
+                        <span class="value">Forensics</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Date</span>
+                        <span class="value">May 13, 2025</span>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <span class="tag">Foremost</span>
+                    <span class="tag">PCAP</span>
+                    <span class="tag">Wireshark</span>
+                    <span class="tag">Carving</span>
+                </div>
+            </aside>
+
+            <article class="blog-content">
+                <h1>Security Footage: Tryhackme</h1>
+                <div class="blog-meta">
+                    > DECLASSIFIED: May 13, 2025 | ⏱ 2 min read | Author: gr4ktung
+                </div>
+
+                <p>I came across this challenge and since it was a new lab I decided to check it out. I found it quite interesting...</p>
+
+                <h3>🧩 Challenge Description</h3>
+                <p>Someone broke into our office last night, but they destroyed the hard drives with the security footage. Can you recover the footage?</p>
+                
+                <img src="../tryhackme/images/security-footage01.webp" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>🔍 Step 1: Inspect the PCAP File</h3>
+                <p>Before jumping in, I opened the PCAP in Wireshark to take a peek. I noticed several TCP/HTTP streams and some large data transfers, possibly file transfers or media streams. I tried looking into the file and seeing if I could extract data manually, but it wasn't that straightforward!</p>
+
+                <img src="../tryhackme/images/security-footage02.webp" alt="Challenge Interface" class="content-img">
+
+                <h3>🧰 Step 2: Extract Files with Foremost</h3>
+                <p>The description mentioned that the hard drive contents were destroyed, which was a strong hint toward <strong>file carving</strong>. To automate this, I used <code>foremost</code>—a forensic tool designed to recover files based on headers and footers.</p>
+                
+                <div class="command-block">foremost -i security-footage-1648933966395.pcap -o output_folder</div>
+
+                <p>After a few seconds, it generated a directory structure containing the recovered data:</p>
+
+                <img src="../tryhackme/images/security-footage03.webp" alt="Challenge Interface" class="content-img">
+
+                <h3>🖼 Step 3: Inspect the Extracted Images</h3>
+                <p>I navigated into the generated <code>output_folder</code> and opened the images under the <code>jpg/</code> directory.</p>
+
+                <img src="../tryhackme/images/security-footage04.webp" alt="Challenge Interface" class="content-img">
+
+                <h3>Final step: Getting the flag</h3>
+                <p>The flag text was distributed among the images. After viewing each one, I re-constructed the string to form the final flag. It was a classic "piece the puzzle together" forensics challenge!</p>
+
+                <p>Hope you learnt something from this post!</p>
+
+                <div class="post-nav">
+                    <a href="../../../blog.html" class="btn">RETURN_TO_BLOG</a>
+                </div>
+            </article>
+
+
+        </div>
+    </main>
+
+    <footer>
+        <p>sys.exit(0) |Designed by gr4ktung</p>
+    </footer>
+
+    <div class="scroll-controls">
+        <button class="scroll-btn" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">↑</button>
+        <button class="scroll-btn" onclick="window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'})">↓</button>
+    </div>
+</body>
+</html>

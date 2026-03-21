@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gr4ktung | mb4vu_d3stroy3r (RSA) Walkthrough</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../../style.css">
+</head>
+<body>
+    <div class="cyber-grid"></div>
+
+    <nav>
+        <div class="logo"><a href="../../../index.html">gr4ktung</a></div>
+        
+        <div class="search-container">
+            <span class="search-prompt">gr4ktung@blog:~$ grep</span>
+            <input type="text" id="site-search" placeholder="..." autocomplete="off">
+        </div>
+
+        <div class="nav-links">
+            <a href="../../../about.html">~/about</a>
+            <a href="../../../blog.html" class="active">~/posts</a>
+            <a href="../../../achievements.html">~/achievements</a>
+        </div>
+    </nav>
+
+    <main>
+        <div class="writeup-layout">
+            
+            <aside class="sidebar">
+                <h4>MISSION_BRIEF</h4>
+                <div class="intel-grid">
+                    <div class="detail-box">
+                        <span class="label">Target</span>
+                        <span class="value">mb4vu-d3stroy3r</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Category</span>
+                        <span class="value">Crypto</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Author</span>
+                        <span class="value">gr4ktung</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Date</span>
+                        <span class="value">March 13, 2026</span>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <span class="tag">RSA</span>
+                    <span class="tag">Math</span>
+                    <span class="tag">PyCryptodome</span>
+                    <span class="tag">Scripting</span>
+                </div>
+            </aside>
+
+            <article class="blog-content">
+                <h1>Official Writeup: mb4vu_d3stroy3r</h1>
+                <div class="blog-meta">
+                    > Published: March 13, 2026 | ⏱ 4 min read | Author: gr4ktung
+                </div>
+
+                <h3>🧭 Challenge Overview</h3>
+                <p>In this cryptography challenge, we are given:</p>
+                <ul>
+                    <li>Public RSA parameters in <code>message.txt</code></li>
+                    <li>A solve script (<code>solve.py</code>) that includes the primes</li>
+                </ul>
+                <p>The goal is to recover the original plaintext (flag) from the ciphertext.</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>📥 Given Data</h3>
+                <p>From <code>message.txt</code>:</p>
+                <div class="command-block" style="white-space: pre-wrap; word-break: break-all;">n = 92283136990099460275533153086124584022958929798299371500619974837280123423246394159707328820216146992807945747113457719745339128744119439553120720490406776520962430247914099554032851609395821964502896889085691269491526567936678493618223120369148916865619194556692589481739198356175037861894907363150672351503
+
+                    e = 65537
+
+                    cipher_text = 91167994821315264614805295278298620888233844895967139621631965596022872036998190432221999953476634628231335796446996866183263589906357148592873839924641994721744904045334016489394567368906784378987337513873972081392466619248940487632222715680278824844801277316559748310900860504972401913770259259649692624719</div>
+
+                <p>From <code>solve.py</code>, we are also handed the holy grail of RSA: the Prime factors $p$ and $q$.</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>🧠 Understanding the Vulnerability</h3>
+                <p>RSA security fundamentally depends on the computational difficulty of factoring large numbers:</p>
+                <div style="text-align: center; margin: 15px 0;">
+                    $n = p \times q$
+                </div>
+                
+                
+
+                <p>However, in this challenge, 🚨 <strong>the primes $p$ and $q$ are already known</strong>. This completely breaks RSA, because knowing the primes allows us to effortlessly reconstruct the private key.</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>🔑 RSA Decryption Theory</h3>
+                <p>With $p$ and $q$ in hand, we can follow standard RSA key generation steps to decrypt the message.</p>
+                
+                <ol>
+                    <li><strong>Compute Euler's Totient:</strong><br>
+                        $\phi(n) = (p - 1)(q - 1)$
+                    </li>
+                    <li><strong>Compute Private Exponent:</strong><br>
+                        $d \equiv e^{-1} \pmod{\phi(n)}$
+                    </li>
+                    <li><strong>Decrypt Ciphertext:</strong><br>
+                        $m = c^d \bmod n$
+                    </li>
+                    <li><strong>Convert to Readable Text:</strong><br>
+                        The decrypted integer ($m$) is converted back into bytes to recover the flag.
+                    </li>
+                </ol>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>🛠️ Exploitation Steps & Script</h3>
+                
+                <p>Here is how the math translates directly into PyCryptodome methods:</p>
+                
+                <table style="width: 100%; text-align: left; border-collapse: collapse; margin-bottom: 20px;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--accent-primary);">
+                            <th style="padding: 10px;">Step</th>
+                            <th style="padding: 10px;">Python Code</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td style="padding: 10px;">1. Compute $\phi(n)$</td><td><code>phi = (p - 1) * (q - 1)</code></td></tr>
+                        <tr><td style="padding: 10px;">2. Compute Private Key $d$</td><td><code>d = inverse(e, phi)</code></td></tr>
+                        <tr><td style="padding: 10px;">3. Decrypt Ciphertext</td><td><code>m = pow(cipher_text, d, n)</code></td></tr>
+                        <tr><td style="padding: 10px;">4. Recover Flag</td><td><code>flag = long_to_bytes(m)</code></td></tr>
+                    </tbody>
+                </table>
+
+                <h4>🧪 Final Solve Script</h4>
+                <div class="command-block" style="white-space: pre-wrap; word-break: break-all;">from Crypto.Util.number import long_to_bytes, inverse
+
+                    p = 10428615258416108003372202871855627713663325599674460924186517713082197448534315449595394752587304354394402047262801959990727856908043138185588365886987557
+                    q = 8849030739304056868757301096931487921973840186794195322071503751716059434197468028088264340322992996182734000877348221433845302801843370163430108727308579
+
+                    e = 65537
+
+                    n = 92283136990099460275533153086124584022958929798299371500619974837280123423246394159707328820216146992807945747113457719745339128744119439553120720490406776520962430247914099554032851609395821964502896889085691269491526567936678493618223120369148916865619194556692589481739198356175037861894907363150672351503
+
+                    cipher_text = 91167994821315264614805295278298620888233844895967139621631965596022872036998190432221999953476634628231335796446996866183263589906357148592873839924641994721744904045334016489394567368906784378987337513873972081392466619248940487632222715680278824844801277316559748310900860504972401913770259259649692624719
+
+                    phi = (p - 1) * (q - 1)
+                    d = inverse(e, phi)
+
+                    m = pow(cipher_text, d, n)
+                    flag = long_to_bytes(m)
+
+                    print("Decrypted flag:", flag.decode())</div>
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/mbavu.png" alt="Challenge Interface" class="content-img">
+
+                <h4>▶️ Execution</h4>
+                <div class="command-block">python3 solve.py
+                    # Output: Decrypted flag: t3rmctf{n4kuji4_mb4vu_t4tu_2a5}</div>
+
+                <div style="text-align: center; margin-top: 40px;">
+                    <div class="flag-block">t3rmctf{n4kuji4_mb4vu_t4tu_2a5}</div>
+                </div>
+
+                <div class="post-nav">
+                    <a href="../../../blog.html" class="btn">RETURN_TO_DIR</a>
+                </div>
+            </article>
+
+            <aside class="sidebar" style="background: transparent; border: none; padding: 0;">
+                <h4 style="padding-left: 20px;">RELATED_INTEL FROM t3rmin4t0rs-CTF 2026</h4>
+                <div class="staggered-links">
+                    <a href="../t3rmin4t0rs_ctf-2026/ailavator.html" class="stagger-link">Boot2Root: Ailavator</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/d3uc3-dev.html" class="stagger-link">Web: d3uc3-dev</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/dc.html" class="stagger-link">IoT/Web: D-C</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/epst3in-files.html" class="stagger-link">Web: Epst3in-files</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/l33node-m4g1c.html" class="stagger-link">Web: l33node-m4g1c</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/majembe.html" class="stagger-link">Crypto: Maj3mb3</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/tony-st4ck.html" class="stagger-link">Forensics: T0ny-st4ck</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/weka-mawe01.html" class="stagger-link">Misc: W3k4-m4w3 01</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/weka-mawe02.html" class="stagger-link">Misc: W3k4-m4w3</a>
+                </div>
+            </aside> 
+        </div>
+    </main>
+
+    <footer>
+        <p>sys.exit(0) | Designed by gr4ktung </p>
+    </footer>
+
+    <div class="scroll-controls">
+        <button class="scroll-btn" id="scroll-to-top">↑</button>
+        <button class="scroll-btn" id="scroll-to-bottom">↓</button>
+    </div>
+
+    <script src="../../../script.js"></script>
+</body>
+</html>

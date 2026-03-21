@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gr4ktung | m4j3mb3 (RSA) Walkthrough</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../../style.css">
+</head>
+<body>
+    <div class="cyber-grid"></div>
+
+    <nav>
+        <div class="logo"><a href="../../../index.html">gr4ktung</a></div>
+        
+        <div class="search-container">
+            <span class="search-prompt">gr4ktung@blog:~$ grep</span>
+            <input type="text" id="site-search" placeholder="..." autocomplete="off">
+        </div>
+
+        <div class="nav-links">
+            <a href="../../../about.html">~/about</a>
+            <a href="../../../blog.html" class="active">~/posts</a>
+            <a href="../../../achievements.html">~/achievements</a>
+        </div>
+    </nav>
+
+    <main>
+        <div class="writeup-layout">
+            
+            <aside class="sidebar">
+                <h4>MISSION_BRIEF</h4>
+                <div class="intel-grid">
+                    <div class="detail-box">
+                        <span class="label">Target</span>
+                        <span class="value">m4j3mb3</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Category</span>
+                        <span class="value">Crypto</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Author</span>
+                        <span class="value">gr4ktung</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Date</span>
+                        <span class="value">March 13, 2026</span>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <span class="tag">RSA</span>
+                    <span class="tag">Shared Prime Attack</span>
+                    <span class="tag">GCD</span>
+                    <span class="tag">Python</span>
+                </div>
+            </aside>
+
+            <article class="blog-content">
+                <h1>Official Writeup: m4j3mb3</h1>
+                <div class="blog-meta">
+                    > Published: March 13, 2026 | ⏱ 5 min read | Author: gr4ktung
+                </div>
+
+                <h3>🧭 Challenge Overview</h3>
+                <p>We are given the following cryptographic parameters:</p>
+                <ul>
+                    <li>Two RSA moduli: $N_1, N_2$</li>
+                    <li>Two ciphertexts: $ct_1, ct_2$</li>
+                    <li>A common public exponent: $e = 65537$</li>
+                </ul>
+                <p><strong>Goal:</strong> Recover the flag from the encrypted data.</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>🔎 Initial Observation & Vulnerability</h3>
+                <p>At first glance, this looks like two independent RSA encryptions. However, a key detail stands out: we have the <strong>same exponent ($e$)</strong> but <strong>two different moduli ($N_1, N_2$)</strong>.</p>
+                
+                <p>This raises immediate suspicion of a common vulnerability: ⚠️ <strong>The moduli may share a prime factor.</strong></p>
+
+                <h4>💥 Core Vulnerability: Shared Prime</h4>
+                <p>If two RSA moduli share a prime factor, they can be represented as:</p>
+                
+                <div style="text-align: center; margin: 15px 0;">
+                    $$N_1 = p \times q_1, \quad N_2 = p \times q_2$$
+                </div>
+
+                
+
+                <p>Because $p$ is a common divisor to both $N_1$ and $N_2$, we can effortlessly recover $p$ using the Greatest Common Divisor (GCD) algorithm:</p>
+                
+                <div style="text-align: center; margin: 15px 0;">
+                    $$p = \gcd(N_1, N_2)$$
+                </div>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>🛠️ Exploitation Steps</h3>
+
+                <h4>🔹 Step 1: Compute GCD</h4>
+                <div class="command-block">p = gcd(N1, N2)</div>
+                <p>✅ <strong>Result:</strong> <code>[+] Shared prime recovered!</code> This confirms both moduli indeed share a common prime.</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+                <h4>🔓 Step 2: Factor the Moduli</h4>
+                <p>Now that we have $p$, we can simply divide the moduli to find the other primes:</p>
+                <div class="command-block">q1 = N1 // p
+                        q2 = N2 // p</div>
+
+                <h4>🔑 Step 3: Compute Private Keys</h4>
+                <p>We compute Euler's Totient for both keys:</p>
+                <div style="text-align: center; margin: 15px 0;">
+                    $$\phi(n) = (p - 1)(q - 1)$$
+                </div>
+                
+                <div class="command-block">phi1 = (p - 1) * (q1 - 1)
+                            phi2 = (p - 1) * (q2 - 1)</div>
+
+                <p>Then compute the private exponents $d \equiv e^{-1} \pmod{\phi(n)}$:</p>
+                <div class="command-block">d1 = modinv(e, phi1)
+                            d2 = modinv(e, phi2)</div>
+
+                <h4>🔐 Step 4: Decrypt Ciphertexts</h4>
+                <p>Using standard RSA decryption ($m = c^d \bmod n$):</p>
+                <div class="command-block">m1 = pow(ct1, d1, N1)
+                        m2 = pow(ct2, d2, N2)
+
+                        pt1 = long_to_bytes(m1)
+                        pt2 = long_to_bytes(m2)</div>
+
+                <h4>📄 Step 5: Analyze Plaintexts</h4>
+                <p>Printing the outputs yields:</p>
+                <div class="command-block">PT1: b'...\x74\x33rmctf{h4kun4_sh4mb4_ngu'
+                        PT2: b'mu_in4y0shind4_j3mb3_69c}...'</div>
+                
+                <p><strong>🔍 Observation:</strong> The flag is split across both plaintexts! We need to reconstruct it by concatenating the two.</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+                <h4>🏁 Step 6: Extract Flag</h4>
+                <div class="command-block">combined = pt1 + pt2
+                    start = combined.find(b"t3rmctf{")
+                    end = combined.find(b"}")
+                    flag = combined[start:end+1]</div>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>🧪 Full Solve Script</h3>
+                <div class="command-block" style="white-space: pre-wrap;">from math import gcd
+
+                    def egcd(a, b):
+                        if a == 0:
+                            return b, 0, 1
+                        g, y, x = egcd(b % a, a)
+                        return g, x - (b // a) * y, y
+
+                    def modinv(a, m):
+                        g, x, _ = egcd(a, m)
+                        return x % m
+
+                    def long_to_bytes(n):
+                        return n.to_bytes((n.bit_length() + 7) // 8, 'big')
+
+                    # Step 1: Recover shared prime
+                    p = gcd(N1, N2)
+
+                    # Step 2: Factor
+                    q1 = N1 // p
+                    q2 = N2 // p
+
+                    # Step 3: Compute private keys
+                    phi1 = (p - 1) * (q1 - 1)
+                    phi2 = (p - 1) * (q2 - 1)
+
+                    d1 = modinv(e, phi1)
+                    d2 = modinv(e, phi2)
+
+                    # Step 4: Decrypt
+                    m1 = pow(ct1, d1, N1)
+                    m2 = pow(ct2, d2, N2)
+
+                    pt1 = long_to_bytes(m1)
+                    pt2 = long_to_bytes(m2)
+
+                    # Step 5: Extract flag
+                    combined = pt1 + pt2
+                    start = combined.find(b"t3rmctf{")
+                    end = combined.find(b"}")
+
+                    flag = combined[start:end+1]
+                    print("FLAG:", flag.decode())</div>
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+                
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/majembe.png" alt="Challenge Interface" class="content-img">
+
+                <div style="text-align: center; margin-top: 40px;">
+                    <div class="flag-block">t3rmctf{h4kun4_sh4mb4_ngumu_in4y0shind4_j3mb3_69c}</div>
+                </div>
+
+                <div class="post-nav">
+                    <a href="../../../blog.html" class="btn">RETURN_TO_DIR</a>
+                </div>
+            </article>
+
+            <aside class="sidebar" style="background: transparent; border: none; padding: 0;">
+                <h4 style="padding-left: 20px;">RELATED_INTEL FROM t3rmin4t0rs-CTF 2026</h4>
+                <div class="staggered-links">
+                    <a href="../t3rmin4t0rs_ctf-2026/ailavator.html" class="stagger-link">Boot2Root: Ailavator</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/d3uc3-dev.html" class="stagger-link">Web: d3uc3-dev</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/dc.html" class="stagger-link">IoT/Web: D-C</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/epst3in-files.html" class="stagger-link">Web: Epst3in-files</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/l33node-m4g1c.html" class="stagger-link">Web: l33node-m4g1c</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/mbavu-destroyer.html" class="stagger-link">Crypto: Mb4vu-d3stroy3r</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/tony-st4ck.html" class="stagger-link">Forensics: T0ny-st4ck</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/weka-mawe01.html" class="stagger-link">Misc: W3k4-m4w3 01</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/weka-mawe02.html" class="stagger-link">Misc: W3k4-m4w3</a>
+                </div>
+            </aside> 
+        </div>
+    </main>
+
+    <footer>
+        <p>sys.exit(0) | Designed by gr4ktung </p>
+    </footer>
+
+    <div class="scroll-controls">
+        <button class="scroll-btn" id="scroll-to-top">↑</button>
+        <button class="scroll-btn" id="scroll-to-bottom">↓</button>
+    </div>
+
+    <script src="../../../script.js"></script>
+</body>
+</html>

